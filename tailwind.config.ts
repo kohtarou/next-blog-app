@@ -4,7 +4,7 @@ const config: Config = {
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}", // 修正: *** を * に変更
   ],
   theme: {
     extend: {
@@ -16,4 +16,5 @@ const config: Config = {
   },
   plugins: [],
 };
+
 export default config;
