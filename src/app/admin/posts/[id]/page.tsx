@@ -10,6 +10,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { twMerge } from "tailwind-merge";
 import Link from "next/link";
+import Modal from "@/app/_components/Modal";
 
 // カテゴリをフェッチしたときのレスポンスのデータ型
 type RawApiCategoryResponse = {
@@ -46,6 +47,7 @@ const Page: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fetchErrorMsg, setFetchErrorMsg] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
@@ -223,6 +225,25 @@ const Page: React.FC = () => {
     }
   };
 
+  const handleDelete = async () => {
+    setIsSubmitting(true);
+    try {
+      const requestUrl = `/api/posts/${id}`;
+      const response = await fetch(requestUrl, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error("削除に失敗しました");
+      }
+      setIsModalOpen(false);
+      router.push("/admin/posts");
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (fetchErrorMsg) {
     return <div className="text-red-500">{fetchErrorMsg}</div>;
   }
@@ -359,7 +380,7 @@ const Page: React.FC = () => {
                 "rounded-md px-2 py-1 font-bold",
                 "bg-red-500 text-white hover:bg-red-600"
               )}
-              // onClick={handleDelete}
+              onClick={() => setIsModalOpen(true)}
             >
               <FontAwesomeIcon icon={faTrash} className="mr-1" />
               削除
@@ -367,6 +388,13 @@ const Page: React.FC = () => {
           </div>
         </div>
       </form>
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onConfirm={handleDelete}
+        message={`投稿「${newTitle}」を本当に削除しますか？`}
+      />
     </main>
   );
 };
