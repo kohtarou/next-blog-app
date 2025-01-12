@@ -96,7 +96,10 @@ const Page: React.FC = () => {
             className="rounded-xl"
           />
         </div>
-        <div dangerouslySetInnerHTML={{ __html: safeHTML }} />
+        <div
+          style={{ whiteSpace: "pre-line" }}
+          dangerouslySetInnerHTML={{ __html: safeHTML }}
+        />
       </div>
     </main>
   );
