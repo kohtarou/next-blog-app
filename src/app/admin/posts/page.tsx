@@ -12,6 +12,7 @@ import {
   faDownload,
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
+import { supabase } from "@/utils/supabase"; // 追加
 
 const Page: React.FC = () => {
   const [posts, setPosts] = useState<Post[] | null>(null);
@@ -33,21 +34,28 @@ const Page: React.FC = () => {
       }
       const postResponse: PostApiResponse[] = await response.json();
       setPosts(
-        postResponse.map((rawPost) => ({
-          id: rawPost.id,
-          title: rawPost.title,
-          content: rawPost.content,
-          coverImage: {
-            url: rawPost.coverImageURL,
-            width: 1000,
-            height: 1000,
-          },
-          createdAt: rawPost.createdAt,
-          categories: rawPost.categories.map((category) => ({
-            id: category.category.id,
-            name: category.category.name,
-          })),
-        }))
+        await Promise.all(
+          postResponse.map(async (rawPost) => {
+            const { data } = supabase.storage
+              .from("cover_image")
+              .getPublicUrl(rawPost.coverImageKey);
+            return {
+              id: rawPost.id,
+              title: rawPost.title,
+              content: rawPost.content,
+              coverImage: {
+                url: data.publicUrl,
+                width: 1000,
+                height: 1000,
+              },
+              createdAt: rawPost.createdAt,
+              categories: rawPost.categories.map((category) => ({
+                id: category.category.id,
+                name: category.category.name,
+              })),
+            };
+          })
+        )
       );
     } catch (e) {
       setFetchError(

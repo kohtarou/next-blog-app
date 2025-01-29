@@ -6,16 +6,12 @@ import PostSummary from "@/app/_components/PostSummary";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 import Link from "next/link";
+import { supabase } from "@/utils/supabase"; // 追加
 
 const Page: React.FC = () => {
   const [posts, setPosts] = useState<Post[] | null>(null);
-
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  /* 環境変数から「APIキー」と「エンドポイント」を取得
-  const apiBaseEp = process.env.NEXT_PUBLIC_MICROCMS_BASE_EP!;
-  const apiKey = process.env.NEXT_PUBLIC_MICROCMS_API_KEY!;
-  */
   useEffect(() => {
     const fetchPosts = async () => {
       try {
@@ -30,21 +26,28 @@ const Page: React.FC = () => {
         }
         const postResponse: PostApiResponse[] = await response.json();
         setPosts(
-          postResponse.map((rawPost) => ({
-            id: rawPost.id,
-            title: rawPost.title,
-            content: rawPost.content,
-            coverImage: {
-              url: rawPost.coverImageURL,
-              width: 1000,
-              height: 1000,
-            },
-            createdAt: rawPost.createdAt,
-            categories: rawPost.categories.map((category) => ({
-              id: category.category.id,
-              name: category.category.name,
-            })),
-          }))
+          await Promise.all(
+            postResponse.map(async (rawPost) => {
+              const { data } = supabase.storage
+                .from("cover_image")
+                .getPublicUrl(rawPost.coverImageKey);
+              return {
+                id: rawPost.id,
+                title: rawPost.title,
+                content: rawPost.content,
+                coverImage: {
+                  url: data.publicUrl,
+                  width: 1000,
+                  height: 1000,
+                },
+                createdAt: rawPost.createdAt,
+                categories: rawPost.categories.map((category) => ({
+                  id: category.category.id,
+                  name: category.category.name,
+                })),
+              };
+            })
+          )
         );
       } catch (e) {
         setFetchError(

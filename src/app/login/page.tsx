@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEnvelope, faKey } from "@fortawesome/free-solid-svg-icons";
 import { twMerge } from "tailwind-merge";
 import ValidationAlert from "../_components/ValidationAlert";
-import { supabase } from "@/app/utils/supabase";
+import { supabase } from "@/utils/supabase";
 import { useRouter } from "next/navigation";
 
 const Page: React.FC = () => {

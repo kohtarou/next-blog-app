@@ -6,6 +6,7 @@ import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { twMerge } from "tailwind-merge";
 import { Category } from "@/app/_types/Category";
 import { faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
+import { useAuth } from "@/app/_hooks/useAuth";
 import Link from "next/link";
 
 // カテゴリをフェッチしたときのレスポンスのデータ型
@@ -21,28 +22,25 @@ const Page: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fetchErrorMsg, setFetchErrorMsg] = useState<string | null>(null);
-
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryNameError, setNewCategoryNameError] = useState("");
-
   const [currentCategoryName, setCurrentNameCategory] = useState<
     string | undefined
   >(undefined);
-
   // 動的ルートパラメータから id を取得 （URL:/admin/categories/[id]）
   const { id } = useParams() as { id: string };
-
   // ページの移動に使用するフック
   const router = useRouter();
-
   // カテゴリ配列 (State)。取得中と取得失敗時は null、既存カテゴリが0個なら []
   const [categories, setCategories] = useState<Category[] | null>(null);
+
+  const [categoryName, setCategoryName] = useState("");
+  const { token } = useAuth(); // トークンの取得
 
   // ウェブAPI (/api/categories) からカテゴリの一覧をフェッチする関数の定義
   const fetchCategories = async () => {
     try {
       setIsLoading(true);
-
       // フェッチ処理の本体
       const requestUrl = "/api/categories";
       const res = await fetch(requestUrl, {
@@ -84,6 +82,29 @@ const Page: React.FC = () => {
     fetchCategories();
   }, []);
 
+  useEffect(() => {
+    const fetchCategory = async () => {
+      try {
+        const requestUrl = `/api/categories/${id}`;
+        const res = await fetch(requestUrl, {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        if (!res.ok) {
+          throw new Error(`${res.status}: ${res.statusText}`);
+        }
+
+        const category = await res.json();
+        setCategoryName(category.name);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    fetchCategory();
+  }, [id]);
+
   // categories または id が変更されたときにコールされる関数
   useEffect(() => {
     // id に対応するカテゴリ名を取得
@@ -112,26 +133,38 @@ const Page: React.FC = () => {
 
   // 「カテゴリの名前を変更」のボタンが押下されたときにコールされる関数
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); // これを実行しないと意図せずページがリロードされるので注意
+    e.preventDefault();
+
+    if (!token) {
+      window.alert("予期せぬ動作：トークンが取得できません。");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
+      const requestBody = {
+        name: categoryName,
+      };
       const requestUrl = `/api/admin/categories/${id}`;
+      console.log(`${requestUrl} => ${JSON.stringify(requestBody, null, 2)}`);
       const res = await fetch(requestUrl, {
         method: "PUT",
         cache: "no-store",
         headers: {
           "Content-Type": "application/json",
+          Authorization: token, // ◀ 追加
         },
-        body: JSON.stringify({ name: newCategoryName }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!res.ok) {
         throw new Error(`${res.status}: ${res.statusText}`);
       }
 
-      setNewCategoryName("");
-      await fetchCategories(); // カテゴリの一覧を再取得
+      const categoryResponse = await res.json();
+      setIsSubmitting(false);
+      router.push(`/admin/categories/${categoryResponse.id}`);
     } catch (error) {
       const errorMsg =
         error instanceof Error
@@ -139,7 +172,6 @@ const Page: React.FC = () => {
           : `予期せぬエラーが発生しました\n${error}`;
       console.error(errorMsg);
       window.alert(errorMsg);
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -151,12 +183,20 @@ const Page: React.FC = () => {
       return;
     }
 
+    if (!token) {
+      window.alert("予期せぬ動作：トークンが取得できません。");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const requestUrl = `/api/admin/categories/${id}`;
       const res = await fetch(requestUrl, {
         method: "DELETE",
         cache: "no-store",
+        headers: {
+          Authorization: token, // ◀ 追加
+        },
       });
 
       if (!res.ok) {
@@ -203,6 +243,18 @@ const Page: React.FC = () => {
     <main>
       <div className="mb-4 text-2xl font-bold">カテゴリの編集・削除</div>
 
+      {isSubmitting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="flex items-center rounded-lg bg-white px-8 py-4 shadow-lg">
+            <FontAwesomeIcon
+              icon={faSpinner}
+              className="mr-2 animate-spin text-gray-500"
+            />
+            <div className="flex items-center text-gray-500">処理中...</div>
+          </div>
+        </div>
+      )}
+
       <form
         onSubmit={handleSubmit}
         className={twMerge("mb-4 space-y-4", isSubmitting && "opacity-50")}
@@ -222,10 +274,9 @@ const Page: React.FC = () => {
               id="name"
               name="name"
               className="w-full rounded-md border-2 px-2 py-1"
-              placeholder="新しいカテゴリの名前を記入してください"
-              value={newCategoryName}
-              onChange={updateNewCategoryName}
-              autoComplete="off"
+              value={categoryName}
+              onChange={(e) => setCategoryName(e.target.value)}
+              placeholder="カテゴリ名を記入してください"
               required
             />
             {newCategoryNameError && (

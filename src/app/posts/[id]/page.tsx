@@ -9,6 +9,7 @@ import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 import Image from "next/image";
 
 import DOMPurify from "isomorphic-dompurify";
+import { supabase } from "@/utils/supabase"; // 追加
 
 // 投稿記事の詳細表示 /posts/[id]
 const Page: React.FC = () => {
@@ -32,12 +33,18 @@ const Page: React.FC = () => {
           throw new Error("データの取得に失敗しました");
         }
         const postApiResponse: PostApiResponse = await response.json();
+
+        // coverImageKey から coverImageUrl を取得
+        const { data } = supabase.storage
+          .from("cover_image")
+          .getPublicUrl(postApiResponse.coverImageKey);
+
         setPost({
           id: postApiResponse.id,
           title: postApiResponse.title,
           content: postApiResponse.content,
           coverImage: {
-            url: postApiResponse.coverImageURL,
+            url: data.publicUrl,
             width: 1000,
             height: 1000,
           },

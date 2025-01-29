@@ -6,6 +6,8 @@ import { twMerge } from "tailwind-merge";
 import { Category } from "@/app/_types/Category";
 import { faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
 import Link from "next/link";
+import { useAuth } from "@/app/_hooks/useAuth";
+import { useRouter } from "next/navigation";
 
 // カテゴリをフェッチしたときのレスポンスのデータ型
 type CategoryApiResponse = {
@@ -22,6 +24,8 @@ const Page: React.FC = () => {
   const [fetchErrorMsg, setFetchErrorMsg] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryNameError, setNewCategoryNameError] = useState("");
+  const { token } = useAuth(); // トークンの取得
+  const router = useRouter();
 
   // カテゴリ配列 (State)。取得中と取得失敗時は null、既存カテゴリが0個なら []
   const [categories, setCategories] = useState<Category[] | null>(null);
@@ -89,27 +93,38 @@ const Page: React.FC = () => {
 
   // フォームのボタン (type="submit") がクリックされたときにコールされる関数
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); // これを実行しないと意図せずページがリロードされるので注意
+    e.preventDefault();
+
+    if (!token) {
+      window.alert("予期せぬ動作：トークンが取得できません。");
+      return;
+    }
+
     setIsSubmitting(true);
 
-    // ▼▼ 追加 ウェブAPI (/api/admin/categories) にPOSTリクエストを送信する処理
     try {
+      const requestBody = {
+        name: newCategoryName,
+      };
       const requestUrl = "/api/admin/categories";
+      console.log(`${requestUrl} => ${JSON.stringify(requestBody, null, 2)}`);
       const res = await fetch(requestUrl, {
         method: "POST",
         cache: "no-store",
         headers: {
           "Content-Type": "application/json",
+          Authorization: token, // ◀ 追加
         },
-        body: JSON.stringify({ name: newCategoryName }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!res.ok) {
-        throw new Error(`${res.status}: ${res.statusText}`); // -> catch節に移動
+        throw new Error(`${res.status}: ${res.statusText}`);
       }
 
-      setNewCategoryName("");
-      await fetchCategories(); // カテゴリの一覧を再取得
+      const categoryResponse = await res.json();
+      setIsSubmitting(false);
+      router.push(`/admin/categories/${categoryResponse.id}`);
     } catch (error) {
       const errorMsg =
         error instanceof Error
@@ -117,7 +132,6 @@ const Page: React.FC = () => {
           : `予期せぬエラーが発生しました\n${error}`;
       console.error(errorMsg);
       window.alert(errorMsg);
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -156,21 +170,20 @@ const Page: React.FC = () => {
 
       <form
         onSubmit={handleSubmit}
-        className={twMerge("mb-4 space-y-4", isSubmitting && "opacity-50")}
+        className={twMerge("space-y-4", isSubmitting && "opacity-50")}
       >
         <div className="space-y-1">
           <label htmlFor="name" className="block font-bold">
-            名前
+            カテゴリ名
           </label>
           <input
             type="text"
             id="name"
             name="name"
             className="w-full rounded-md border-2 px-2 py-1"
-            placeholder="新しいカテゴリの名前を記入してください"
             value={newCategoryName}
-            onChange={updateNewCategoryName}
-            autoComplete="off"
+            onChange={(e) => setNewCategoryName(e.target.value)}
+            placeholder="カテゴリ名を記入してください"
             required
           />
           {newCategoryNameError && (
@@ -190,13 +203,9 @@ const Page: React.FC = () => {
             className={twMerge(
               "rounded-md px-5 py-1 font-bold",
               "bg-indigo-500 text-white hover:bg-indigo-600",
-              "disabled:cursor-not-allowed disabled:opacity-50"
+              "disabled:cursor-not-allowed"
             )}
-            disabled={
-              isSubmitting ||
-              newCategoryNameError !== "" ||
-              newCategoryName === ""
-            }
+            disabled={isSubmitting}
           >
             カテゴリを作成
           </button>
