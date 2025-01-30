@@ -1,4 +1,4 @@
-import { Post } from "@/app/_types/Post";
+/*import { Post } from "@/app/_types/Post";
 
 const dummyPosts: Post[] = [
   {
@@ -66,3 +66,4 @@ const dummyPosts: Post[] = [
 ];
 
 export default dummyPosts;
+*/
